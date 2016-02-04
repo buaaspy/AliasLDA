@@ -513,12 +513,13 @@ public class AliasLDA {
                 }
 
                 double u = random.nextDouble() * p[K - 1];
-                for (int t = 0; t < K; t++) {
+                int t;
+                for (t = 0; t < K; t++) {
                     if (u <= p[t])
                         break;
                 }
 
-                int newTopic = topic;
+                int newTopic = t;
                 nw_[doc[n]][newTopic]++;
                 nd_[newTopic]++;
                 nwsum_[newTopic]++;
