@@ -1,11 +1,6 @@
 package edu.buaa.ml;
 
-/**
- * Created with IntelliJ IDEA.
- * User: sunpy
- * Date: 16-2-3
- * Time: 下午12:56
- */
+
 public class Constants {
     public static final int TOPIC = 10;
     public static final double THETA = 20 / TOPIC;
