@@ -324,12 +324,12 @@ public class AliasLDA {
         FileOutputStream outputStream = new FileOutputStream(out);
         BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
 
-        bufferedOutputStream.write(String.format("vocabulary-size=", V).getBytes());
-        bufferedOutputStream.write(String.format("topic-num=", K).getBytes());
-        bufferedOutputStream.write(String.format("doc-num=", M).getBytes());
-        bufferedOutputStream.write(String.format("train-iter=", iter).getBytes());
-        bufferedOutputStream.write(String.format("theta=", theta).getBytes());
-        bufferedOutputStream.write(String.format("beta=", beta).getBytes());
+        bufferedOutputStream.write(String.format("vocabulary-size=%d\n", V).getBytes());
+        bufferedOutputStream.write(String.format("topic-num=%d\n", K).getBytes());
+        bufferedOutputStream.write(String.format("doc-num=%d\n", M).getBytes());
+        bufferedOutputStream.write(String.format("train-iter=%d\n", iter).getBytes());
+        bufferedOutputStream.write(String.format("theta=%f\n", theta).getBytes());
+        bufferedOutputStream.write(String.format("beta=%f\n", beta).getBytes());
 
         for (int i = 0; i < V; i++)
             bufferedOutputStream.write(String.format("VOCABULARY=%s\n", vocabulary.getWord(i)).getBytes());
