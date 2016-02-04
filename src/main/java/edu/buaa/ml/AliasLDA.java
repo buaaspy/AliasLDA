@@ -1,14 +1,20 @@
 package edu.buaa.ml;
 
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.io.*;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
+import java.math.BigDecimal;
+import java.util.*;
 
 
 public class AliasLDA {
+    private static final Log logger = LogFactory.getLog(AliasLDA.class);
+
+    // phi matrix: topic-word matrix got by training
+    double[][] phi;
 
     // iteration number
     private int iter;
@@ -110,10 +116,6 @@ public class AliasLDA {
             }
             ndsum[m] = N;
         }
-
-        //sunpy
-        for (int k = 0; k < K; k++)
-            System.out.println(String.format("nwsum[%d] = %d", k, nwsum[k]));
     }
 
 
@@ -289,6 +291,8 @@ public class AliasLDA {
 
 
     public void train() {
+        // sunpy
+        System.out.println("train itarations: " + iter);
         for (int i = 0; i < iter; i++) {
             System.out.print(".");
             for (int m = 0; m < M; m++) {
@@ -315,6 +319,135 @@ public class AliasLDA {
     }
 
 
+    public void saveModelParas() throws IOException {
+        File out = new File("model/modelparams.dat");
+        FileOutputStream outputStream = new FileOutputStream(out);
+        BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
+
+        bufferedOutputStream.write(String.format("vocabulary-size=", V).getBytes());
+        bufferedOutputStream.write(String.format("topic-num=", K).getBytes());
+        bufferedOutputStream.write(String.format("doc-num=", M).getBytes());
+        bufferedOutputStream.write(String.format("train-iter=", iter).getBytes());
+        bufferedOutputStream.write(String.format("theta=", theta).getBytes());
+        bufferedOutputStream.write(String.format("beta=", beta).getBytes());
+
+        for (int i = 0; i < V; i++)
+            bufferedOutputStream.write(String.format("VOCABULARY=%s\n", vocabulary.getWord(i)).getBytes());
+
+        for (int k = 0; k < K; k++) {
+            StringBuilder sb = new StringBuilder();
+            for (int w = 0; w < V; w++) {
+                sb.append(String.format("%f ", (nw[w][k] + beta) / (nwsum[k] + vbeta)));
+            }
+            sb.append("\n");
+
+            bufferedOutputStream.write(sb.toString().getBytes());
+        }
+
+        bufferedOutputStream.flush();
+        outputStream.close();
+        bufferedOutputStream.close();
+    }
+
+
+    public void savePhis() throws IOException {
+        File out = new File("model/phis.dat");
+        FileOutputStream outputStream = new FileOutputStream(out);
+        BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
+
+        for (int k = 0; k < K; k++) {
+            StringBuilder sb = new StringBuilder();
+            for (int w = 0; w < V; w++) {
+                sb.append(String.format("%f ", (nw[w][k] + beta) / (nwsum[k] + vbeta)));
+            }
+            sb.append("\n");
+
+            bufferedOutputStream.write(sb.toString().getBytes());
+        }
+
+        bufferedOutputStream.flush();
+        outputStream.close();
+        bufferedOutputStream.close();
+    }
+
+
+    public void initWithSavedParams(String modelParasPath, String phiPath) throws FileNotFoundException {
+
+        // 1. read model params
+        // include: V := vocabulary size
+        //          K := topic number
+        //          M := doc number
+        //       iter := iteration number during training
+        //      theta := doc-topic hyperparameter
+        //       beta := topic-word hyperparameter
+        // vocabulary := word and unique id
+        BufferedReader parasReader = null;
+        parasReader = new BufferedReader(new InputStreamReader(new FileInputStream(modelParasPath)));
+        String line = null;
+
+        vocabulary = new Vocabulary();
+
+        try {
+            while ((line = parasReader.readLine()) != null) {
+                if (StringUtils.isBlank(line) || line.startsWith(Constants.COMMENT_PREFIX)) {
+                    continue;
+                } else if (line.startsWith("vocabulary-size=")) {
+                    V = Integer.valueOf(line.substring(line.indexOf("=") + 1).trim());
+                } else if (line.startsWith("topic-num=")) {
+                    K = Integer.valueOf(line.substring(line.indexOf("=") + 1).trim());
+                } else if (line.startsWith("doc-num=")) {
+                    M = Integer.valueOf(line.substring(line.indexOf("=") + 1).trim());
+                } else if (line.startsWith("iter-num=")) {
+                    iter = Integer.valueOf(line.substring(line.indexOf("=") + 1).trim());
+                } else if (line.startsWith("theta=")) {
+                    theta = Double.valueOf(line.substring(line.indexOf("=") + 1).trim());
+                } else if (line.startsWith("beta=")) {
+                    beta = Integer.valueOf(line.substring(line.indexOf("=") + 1).trim());
+                } else if (line.startsWith("VOCABULARY=")) {
+                    String word = line.substring(line.indexOf("=") + 1).trim();
+                    vocabulary.getId(word, true);
+                }
+            }
+        } catch (IOException e) {
+            logger.error("I/O exception: " + e.toString());
+        } finally {
+            if (parasReader != null) {
+                try {
+                    parasReader.close();
+                } catch (IOException e) {
+                    logger.error("I/O exception");
+                }
+            }
+        }
+
+        // 2. read phi matrix
+        phi = new double[K][V];
+        BufferedReader phiReader = null;
+        phiReader = new BufferedReader(new InputStreamReader(new FileInputStream(modelParasPath)));
+
+        try {
+            int k = 0;
+            int v = 0;
+            while ((line = phiReader.readLine()) != null) {
+                String phis[] = line.split(" ");
+                for (String sphi : phis)
+                    phi[k][v++] = Double.parseDouble(sphi.trim());
+                k++;
+            }
+        } catch (IOException e) {
+            logger.error("I/O exception: " + e.toString());
+        } finally {
+            if (phiReader != null) {
+                try {
+                    phiReader.close();
+                } catch (IOException e) {
+                    logger.error("I/O exception");
+                }
+            }
+        }
+    }
+
+
     public void showTopicWord() throws IOException {
         File out = new File("model/topicword.dat");
         FileOutputStream outputStream = new FileOutputStream(out);
@@ -328,6 +461,7 @@ public class AliasLDA {
                 wordlist[w].count = nw[w][k];
                 wordlist[w].word = w;
             }
+
             Arrays.sort(wordlist, new comparator());
 
             StringBuilder sb = new StringBuilder();
@@ -345,6 +479,130 @@ public class AliasLDA {
         bufferedOutputStream.flush();
         outputStream.close();
         bufferedOutputStream.close();
+    }
+
+
+    // inference new doc's topic distribution
+    // int[] doc: includes each word's unique ID in vocabulary
+    public double[] inferenceDocTopicDist(int[] doc) {
+        int N_ = doc.length;
+        int[] z_ = new int[N_];
+        int[][] nw_ = new int[V][K];
+        int[] nd_ = new int[K];
+        int[] nwsum_ = new int[K];
+        int ndsum_ = 0;
+
+        for (int n = 0; n < N_; n++) {
+            int topic = random.nextInt(K);
+            z_[n] = topic;
+            nw_[doc[n]][topic]++;
+            nd_[topic]++;
+            nwsum_[topic]++;
+        }
+        ndsum_ = N_;
+
+        for (int i = 0; i < Constants.INFERENCE_ITER; i++) {
+            for (int  n = 0; n < z_.length; n++) {
+                int topic = z_[n];
+                nw_[doc[n]][topic]--;
+                nd_[topic]--;
+                nwsum_[topic]--;
+                ndsum_--;
+
+                double[] p = new double[K];
+                double pk = 0;
+                for (int k = 0; k < K; k++) {
+                    pk += ((nw[doc[n]][k] + beta) / (nwsum[k] + vbeta)) * (nd_[k] + theta) / (ndsum_ + K * theta);
+                    p[k] = pk;
+                }
+
+                double u = random.nextDouble() * p[K - 1];
+                for (int t = 0; t < K; t++) {
+                    if (u <= p[t])
+                        break;
+                }
+
+                int newTopic = topic;
+                nw_[doc[n]][newTopic]++;
+                nd_[newTopic]++;
+                nwsum_[newTopic]++;
+                ndsum_++;
+                z_[n] = newTopic;
+            }
+        }
+
+        double[] theta_ = new double[K];
+        for (int k = 0; k < K; k++)
+            theta_[k] = (nd_[k] + theta) / (ndsum_ + K * theta);
+
+        return theta_;
+    }
+
+
+    public double[] inferenceDocTopicDist(String docPath) throws IOException {
+        File file = new File(docPath);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+        List<String> docStringList = new LinkedList<String>();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            String words[] = line.split(" ");
+            for (String word : words) {
+                System.out.println("word from inference: " + word);
+                if (word.trim().length() <= 1)
+                    continue;
+                docStringList.add(word.trim());
+            }
+        }
+        reader.close();
+
+        int[] wordIndexes = new int[docStringList.size()];
+        int i = 0;
+        for (String word : docStringList)
+            wordIndexes[i++] = vocabulary.getId(word, true);
+
+        // sunpy
+        System.out.println("word index = " + wordIndexes[0]);
+
+        return inferenceDocTopicDist(wordIndexes);
+    }
+
+
+    class DocTopic {
+        public int topic;
+        public double prob;
+    }
+
+
+    class comparator1 implements Comparator {
+
+        public int compare(Object o1, Object o2) {
+            DocTopic l = (DocTopic)o1;
+            DocTopic r = (DocTopic)o2;
+
+            BigDecimal blp = new BigDecimal(l.prob);
+            BigDecimal rlp = new BigDecimal(r.prob);
+
+            return blp.compareTo(rlp) == 0 ? 0 : (blp.compareTo(rlp) > 0 ? -1 : 1);
+        }
+    }
+
+    public void inference(String docPath) throws IOException {
+        double[] topicDist = inferenceDocTopicDist(docPath);
+        DocTopic[] topicList = new DocTopic[K];
+        for (int k = 0; k < K; k++) {
+            DocTopic pair = new DocTopic();
+            pair.topic = k;
+            pair.prob = topicDist[k];
+            topicList[k] = pair;
+        }
+
+        Arrays.sort(topicList, new comparator1());
+
+        System.out.println("=====================");
+        for (int k = 0; k < K; k++) {
+            System.out.println(String.format("topic %d: %f", topicList[k].topic, topicList[k].prob));
+        }
+        System.out.println("=====================");
     }
 
 
@@ -408,16 +666,30 @@ public class AliasLDA {
 
     public static void main(String[] args) {
         AliasLDA aliasLDA = new AliasLDA();
+
         aliasLDA.init();
         System.out.println("load corpus done !");
+
         aliasLDA.train();
-        System.out.println("train done !");
+        System.out.println("\ntrain done !");
+
+        try {
+            aliasLDA.saveModelParas();
+        } catch (IOException e) {
+            System.out.println("exception occured when saving model parameters !\ndetailed information: " + e.toString());
+        }
 
         try {
             aliasLDA.showTopicWord();
             System.out.println("write topic-word done !");
         } catch (IOException e) {
-            System.out.println("exception occured when show topic word, detailed information: " + e.toString());
+            System.out.println("exception occured when showing topic word !\ndetailed information: " + e.toString());
+        }
+
+        try {
+            aliasLDA.inference("test/testdoc1.dat");
+        } catch (IOException e) {
+            System.out.println("exception occured when inferencing !\ndetailed information: " + e.toString());
         }
     }
 }
