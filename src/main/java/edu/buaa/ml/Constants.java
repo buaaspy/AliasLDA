@@ -15,4 +15,6 @@ public class Constants {
     public static final int MHSTEP = 2;
     public static final int WORD_NUM_UNDER_TOPIC = 10;
     public static final String COMMENT_PREFIX = "#";
+    public static final String MODEL_PARAMS_SAVED_PATH = "model/modelparams.dat";
+    public static final String MODEL_PHIS_SAVED_PATH = "model/phis.dat";
 }

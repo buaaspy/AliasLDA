@@ -320,7 +320,7 @@ public class AliasLDA {
 
 
     public void saveModelParas() throws IOException {
-        File out = new File("model/modelparams.dat");
+        File out = new File(Constants.MODEL_PARAMS_SAVED_PATH);
         FileOutputStream outputStream = new FileOutputStream(out);
         BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
 
@@ -333,6 +333,17 @@ public class AliasLDA {
 
         for (int i = 0; i < V; i++)
             bufferedOutputStream.write(String.format("VOCABULARY=%s\n", vocabulary.getWord(i)).getBytes());
+
+        bufferedOutputStream.flush();
+        outputStream.close();
+        bufferedOutputStream.close();
+    }
+
+
+    public void savePhis() throws IOException {
+        File out = new File(Constants.MODEL_PHIS_SAVED_PATH);
+        FileOutputStream outputStream = new FileOutputStream(out);
+        BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
 
         for (int k = 0; k < K; k++) {
             StringBuilder sb = new StringBuilder();
@@ -350,24 +361,9 @@ public class AliasLDA {
     }
 
 
-    public void savePhis() throws IOException {
-        File out = new File("model/phis.dat");
-        FileOutputStream outputStream = new FileOutputStream(out);
-        BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(outputStream);
-
-        for (int k = 0; k < K; k++) {
-            StringBuilder sb = new StringBuilder();
-            for (int w = 0; w < V; w++) {
-                sb.append(String.format("%f ", (nw[w][k] + beta) / (nwsum[k] + vbeta)));
-            }
-            sb.append("\n");
-
-            bufferedOutputStream.write(sb.toString().getBytes());
-        }
-
-        bufferedOutputStream.flush();
-        outputStream.close();
-        bufferedOutputStream.close();
+    public void saveModel() throws IOException {
+        saveModelParas();
+        savePhis();
     }
 
 
@@ -674,7 +670,7 @@ public class AliasLDA {
         System.out.println("\ntrain done !");
 
         try {
-            aliasLDA.saveModelParas();
+            aliasLDA.saveModel();
         } catch (IOException e) {
             System.out.println("exception occured when saving model parameters !\ndetailed information: " + e.toString());
         }
